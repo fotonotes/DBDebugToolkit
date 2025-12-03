@@ -28,6 +28,7 @@
 #import "DBTitleValueTableViewCellDataSource.h"
 #import "DBChartView.h"
 #import "DBConsoleOutputCaptor.h"
+#import "DBConsoleViewController.h"
 #import "DBCrashReport.h"
 #import "DBCrashReportDetailsTableViewController.h"
 #import "DBCrashReportsTableViewController.h"
