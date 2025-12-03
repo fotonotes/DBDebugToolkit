@@ -29,7 +29,11 @@
 #import "DBCustomActionsTableViewController.h"
 #import "DBCustomVariablesTableViewController.h"
 #import "DBCrashReportsTableViewController.h"
+#if __has_include(<DBDebugToolkit/DBDebugToolkit-Swift.h>)
 #import <DBDebugToolkit/DBDebugToolkit-Swift.h>
+#else
+#import <DBDebugToolkit-Swift.h>
+#endif
 
 typedef NS_ENUM(NSUInteger, DBMenuTableViewControllerRow) {
     DBMenuTableViewControllerRowPerformance,

@@ -37,14 +37,19 @@
 #import "DBCrashReportsToolkit.h"
 #import "DBTopLevelViewsWrapper.h"
 #import "UIApplication+DBDebugToolkit.h"
+#if __has_include(<DBDebugToolkit/DBDebugToolkit-Swift.h>)
 #import <DBDebugToolkit/DBDebugToolkit-Swift.h>
+#else
+#import <DBDebugToolkit-Swift.h>
+#endif
+
 
 static NSString *const DBDebugToolkitObserverPresentationControllerPropertyKeyPath = @"containerView";
 
 @interface DBDebugToolkit () <DBDebugToolkitTriggerDelegate, DBMenuTableViewControllerDelegate, DBPerformanceWidgetViewDelegate>
 
 @property (nonatomic, copy) NSArray <id <DBDebugToolkitTrigger>> *triggers;
-@property (nonatomic, strong) DBMenuTableViewController *menuViewController;
+@property (nonatomic, strong) UIViewController *menuViewController;
 @property (nonatomic, assign) BOOL showsMenu;
 @property (nonatomic, strong) DBPerformanceToolkit *performanceToolkit;
 @property (nonatomic, strong) DBConsoleOutputCaptor *consoleOutputCaptor;
@@ -399,6 +404,13 @@ static NSString *const DBDebugToolkitObserverPresentationControllerPropertyKeyPa
 - (void)showMenu {
     self.showsMenu = YES;
     UIViewController *presentingViewController = [self topmostViewController];
+    if (@available(iOS 15.0, *)) {
+        UINavigationBarAppearance *navBarAppearance = [[UINavigationBarAppearance alloc] init];
+        navBarAppearance.backgroundColor = [UIColor whiteColor];
+        [navBarAppearance configureWithOpaqueBackground];
+        [UINavigationBar appearance].standardAppearance = navBarAppearance;
+        [UINavigationBar appearance].scrollEdgeAppearance = navBarAppearance;
+    }
     UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:self.menuViewController];
     navigationController.modalTransitionStyle = UIModalTransitionStyleCrossDissolve;
     navigationController.modalPresentationStyle = UIModalPresentationOverFullScreen;
@@ -432,7 +444,7 @@ static NSString *const DBDebugToolkitObserverPresentationControllerPropertyKeyPa
     }
 }
 
-- (DBMenuTableViewController *)menuViewController {
+- (UIViewController *)menuViewController {
     if (!_menuViewController) {
         _menuViewController = [SwiftUIViewFactory
             makeMenuListViewWithPerformanceToolkit:self.performanceToolkit
@@ -451,24 +463,6 @@ static NSString *const DBDebugToolkitObserverPresentationControllerPropertyKeyPa
         ];
     }
 
-    return _menuViewController;
-
-    if (!_menuViewController) {
-        NSBundle *bundle = [NSBundle debugToolkitBundle];
-        UIStoryboard *storyboard = [UIStoryboard storyboardWithName:@"DBMenuTableViewController" bundle:bundle];
-        _menuViewController = [storyboard instantiateInitialViewController];
-        _menuViewController.performanceToolkit = self.performanceToolkit;
-        _menuViewController.consoleOutputCaptor = self.consoleOutputCaptor;
-        _menuViewController.networkToolkit = self.networkToolkit;
-        _menuViewController.userInterfaceToolkit = self.userInterfaceToolkit;
-        _menuViewController.locationToolkit = self.locationToolkit;
-        _menuViewController.coreDataToolkit = self.coreDataToolkit;
-        _menuViewController.crashReportsToolkit = self.crashReportsToolkit;
-        _menuViewController.deviceInfoProvider = [DBDeviceInfoProvider new];
-        _menuViewController.delegate = self;
-    }
-    _menuViewController.customVariables = self.customVariables.allValues;
-    _menuViewController.customActions = self.customActions;
     return _menuViewController;
 }
 
@@ -521,10 +515,6 @@ static NSString *const DBDebugToolkitObserverPresentationControllerPropertyKeyPa
         // Only update the presented DBPerformanceTableViewController instance.
         DBPerformanceTableViewController *performanceTableViewController = (DBPerformanceTableViewController *)navigationController.viewControllers[1];
         performanceTableViewController.selectedSection = section;
-    } else {
-        // Update navigation controller's view controllers.
-        [self.menuViewController openPerformanceMenuWithSection:section
-                                                       animated:shouldAnimateShowingPerformance];
     }
 }
 

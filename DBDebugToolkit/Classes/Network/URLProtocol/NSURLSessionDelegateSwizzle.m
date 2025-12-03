@@ -105,180 +105,163 @@
 }
 
 + (void)swizzleIntoDelegateClasses:(Class)className {
-    // NSURLSessionTaskDelegate
-    [self exchangeMethodsWithOriginalSelector:@selector(dataTaskWithURL:)
-                             swizzledSelector:@selector(db_dataTaskWithURL:)
-                                    className:className];
-    [self exchangeMethodsWithOriginalSelector:@selector(dataTaskWithRequest:)
-                             swizzledSelector:@selector(db_dataTaskWithRequest:)
-                                    className:className];
-    [self exchangeMethodsWithOriginalSelector:@selector(URLSession:dataTask:didReceiveData:)
-                             swizzledSelector:@selector(db_URLSession:dataTask:didReceiveData:)
-                                    className:className];
-    [self exchangeMethodsWithOriginalSelector:@selector(URLSession:dataTask:didReceiveResponse:completionHandler:)
-                             swizzledSelector:@selector(db_URLSession:dataTask:didReceiveResponse:completionHandler:)
-                                    className:className];
-    [self exchangeMethodsWithOriginalSelector:@selector(URLSession:task:didCompleteWithError:)
-                             swizzledSelector:@selector(db_URLSession:task:didCompleteWithError:)
-                                    className:className];
-    [self exchangeMethodsWithOriginalSelector:@selector(URLSession:dataTask:willCacheResponse:completionHandler:)
-                             swizzledSelector:@selector(db_URLSession:dataTask:willCacheResponse:completionHandler:)
-                                    className:className];
+	// NSURLSessionTaskDelegate
+	[self exchangeMethodsWithOriginalSelector:@selector(dataTaskWithURL:)
+							 swizzledSelector:@selector(db_dataTaskWithURL:)
+									className:className];
+	[self exchangeMethodsWithOriginalSelector:@selector(dataTaskWithRequest:)
+							 swizzledSelector:@selector(db_dataTaskWithRequest:)
+									className:className];
+	[self exchangeMethodsWithOriginalSelector:@selector(URLSession:dataTask:didReceiveData:)
+							 swizzledSelector:@selector(db_URLSession:dataTask:didReceiveData:)
+									className:className];
+	[self exchangeMethodsWithOriginalSelector:@selector(URLSession:dataTask:didReceiveResponse:completionHandler:)
+							 swizzledSelector:@selector(db_URLSession:dataTask:didReceiveResponse:completionHandler:)
+									className:className];
+	[self exchangeMethodsWithOriginalSelector:@selector(URLSession:task:didCompleteWithError:)
+							 swizzledSelector:@selector(db_URLSession:task:didCompleteWithError:)
+									className:className];
+	[self exchangeMethodsWithOriginalSelector:@selector(URLSession:dataTask:willCacheResponse:completionHandler:)
+							 swizzledSelector:@selector(db_URLSession:dataTask:willCacheResponse:completionHandler:)
+									className:className];
 }
 
 + (void)swizzleNSURLSessionCompletion {
-    SEL selector = @selector(dataTaskWithRequest:completionHandler:);
-    SEL swizzledSelector = @selector(db_dataTaskWithRequest:completionHandler:);
+	SEL selector = @selector(dataTaskWithRequest:completionHandler:);
+	SEL swizzledSelector = @selector(db_dataTaskWithRequest:completionHandler:);
 
-    Class class = [NSURLSession.sharedSession class];
-    typedef void (^NSURLSessionCompletion)(
-        id dataResponse, NSURLResponse *response, NSError *error);
+	Class class = [NSURLSession class];
+	typedef void (^NSURLSessionCompletion)(id dataResponse, NSURLResponse *response, NSError *error);
 
-    typedef NSURLSessionTask * (^NSURLSessionNewMethod)(
-        NSURLSession *, NSURLRequest *, NSURLSessionCompletion);
+	typedef NSURLSessionTask * (^NSURLSessionNewMethod)(NSURLSession *, NSURLRequest *, NSURLSessionCompletion);
 
-    NSURLSessionNewMethod swizzleBlock =
-        ^NSURLSessionTask *(NSURLSession *slf, NSURLRequest *request,
-                            NSURLSessionCompletion completion) {
-        NSURLSessionCompletion completionWrapper = ^(
-            id dataResponse, NSURLResponse *response, NSError *error) {
-          [[DBNetworkToolkit sharedInstance] saveRequest:request];
-          NSData *data = nil;
-          if ([dataResponse isKindOfClass:[NSURL class]]) {
-              data = [NSData dataWithContentsOfURL:dataResponse];
-          } else if ([dataResponse isKindOfClass:[NSData class]]) {
-              data = dataResponse;
-          }
-          if (error) {
-              [[DBNetworkToolkit sharedInstance]
-                  saveRequestOutcome:[DBRequestOutcome outcomeWithError:error]
-                          forRequest:request];
-          } else {
-              [[DBNetworkToolkit sharedInstance]
-                  saveRequestOutcome:[DBRequestOutcome
-                                         outcomeWithResponse:response
-                                                        data:data]
-                          forRequest:request];
-          }
-          if (completion) {
-              completion(dataResponse, response, error);
-          }
-        };
-        return ((id(*)(id, SEL, id, id))objc_msgSend)(
-            slf, swizzledSelector, request, completionWrapper);
-    };
+	NSURLSessionNewMethod swizzleBlock = ^NSURLSessionTask *(NSURLSession *slf, NSURLRequest *request, NSURLSessionCompletion completion) {
+		NSURLSessionCompletion completionWrapper = ^(id dataResponse, NSURLResponse *response, NSError *error) {
+			[[DBNetworkToolkit sharedInstance] saveRequest:request];
+			NSData *data = nil;
+			if ([dataResponse isKindOfClass:[NSURL class]]) {
+				data = [NSData dataWithContentsOfURL:dataResponse];
+			} else if ([dataResponse isKindOfClass:[NSData class]]) {
+				data = dataResponse;
+			}
+			if (error) {
+				[[DBNetworkToolkit sharedInstance] saveRequestOutcome:[DBRequestOutcome outcomeWithError:error] forRequest:request];
+			} else {
+				[[DBNetworkToolkit sharedInstance] saveRequestOutcome:[DBRequestOutcome outcomeWithResponse:response data:data] forRequest:request];
+			}
+			if (completion) {
+				completion(dataResponse, response, error);
+			}
+		};
+		return ((id(*)(id, SEL, id, id))objc_msgSend)(slf, swizzledSelector, request, completionWrapper);
+	};
 
-    [self exchangeMethodsWithOriginalSelector:selector
-                                      onClass:class
-                                    withBlock:swizzleBlock
-                             swizzledSelector:swizzledSelector];
+	[self exchangeMethodsWithOriginalSelector:selector onClass:class withBlock:swizzleBlock swizzledSelector:swizzledSelector];
 }
 
 + (void)exchangeMethodsWithOriginalSelector:(SEL)originalSelector
-                                    onClass:(Class)class
-                                  withBlock:(id)block
-                           swizzledSelector:(SEL)swizzledSelector {
-    Method originalMethod = class_getInstanceMethod(class, originalSelector);
-    if (!originalMethod) {
-        return;
-    }
+									onClass:(Class)class
+								  withBlock:(id)block
+						   swizzledSelector:(SEL)swizzledSelector {
+	Method originalMethod = class_getInstanceMethod(class, originalSelector);
+	if (!originalMethod) {
+		return;
+	}
 
-    IMP implementation = imp_implementationWithBlock(block);
-    class_addMethod(class, swizzledSelector, implementation, method_getTypeEncoding(originalMethod));
-    Method newMethod = class_getInstanceMethod(class, swizzledSelector);
-    method_exchangeImplementations(originalMethod, newMethod);
+	IMP implementation = imp_implementationWithBlock(block);
+	class_addMethod(class, swizzledSelector, implementation, method_getTypeEncoding(originalMethod));
+	Method newMethod = class_getInstanceMethod(class, swizzledSelector);
+	method_exchangeImplementations(originalMethod, newMethod);
 }
 
 + (void)exchangeMethodsWithOriginalSelector:(SEL)originalSelector
-                           swizzledSelector:(SEL)swizzledSelector
-                                  className:(Class)className
-{
-    Class class = className;
-    Class swizzleClass = [self class];
-    Method originalMethod = class_getInstanceMethod(class, originalSelector);
-    Method swizzledMethod = class_getInstanceMethod(swizzleClass, swizzledSelector);
+						   swizzledSelector:(SEL)swizzledSelector
+								  className:(Class)className {
+	Class class = className;
+	Class swizzleClass = [self class];
+	Method originalMethod = class_getInstanceMethod(class, originalSelector);
+	Method swizzledMethod = class_getInstanceMethod(swizzleClass, swizzledSelector);
 
-    IMP originalImp = method_getImplementation(originalMethod);
-    IMP swizzledImp = method_getImplementation(swizzledMethod);
+	if (!originalMethod || !swizzledMethod) {
+		return;
+	}
 
-    class_replaceMethod(class,
-            swizzledSelector,
-            originalImp,
-            method_getTypeEncoding(originalMethod));
+	IMP originalImp = method_getImplementation(originalMethod);
+	IMP swizzledImp = method_getImplementation(swizzledMethod);
 
-    class_replaceMethod(class,
-                  originalSelector,
-                  swizzledImp,
-                  method_getTypeEncoding(swizzledMethod));
+	class_replaceMethod(class, swizzledSelector, originalImp, method_getTypeEncoding(originalMethod));
+	class_replaceMethod(class, originalSelector, swizzledImp, method_getTypeEncoding(swizzledMethod));
 }
 
 + (IMP)replaceMethodWithSelector:(SEL)originalSelector block:(id)block className:(Class)className {
-    NSCParameterAssert(block);
+	NSCParameterAssert(block);
 
-    Method originalMethod = class_getInstanceMethod(className, originalSelector);
-    NSCParameterAssert(originalMethod);
+	Method originalMethod = class_getInstanceMethod(className, originalSelector);
+	NSCParameterAssert(originalMethod);
 
-    IMP newIMP = imp_implementationWithBlock(block);
+	IMP newIMP = imp_implementationWithBlock(block);
 
-    if (!class_addMethod(className, originalSelector, newIMP, method_getTypeEncoding(originalMethod))) {
-        return method_setImplementation(originalMethod, newIMP);
-    } else {
-        return method_getImplementation(originalMethod);
-    }
+	if (!class_addMethod(className, originalSelector, newIMP, method_getTypeEncoding(originalMethod))) {
+		return method_setImplementation(originalMethod, newIMP);
+	} else {
+		return method_getImplementation(originalMethod);
+	}
 }
 
 - (NSURLSessionDataTask *)db_dataTaskWithURL:(NSURL *)url {
-    return [self db_dataTaskWithURL:url];
+	return [self db_dataTaskWithURL:url];
 }
 
 - (NSURLSessionDataTask *)db_dataTaskWithRequest:(NSURLRequest *)request {
-    [[DBNetworkToolkit sharedInstance] saveRequest:request];
-    return [self db_dataTaskWithRequest:request];
+	[[DBNetworkToolkit sharedInstance] saveRequest:request];
+	return [self db_dataTaskWithRequest:request];
 }
 
 - (void)db_URLSession:(NSURLSession *)session
-             dataTask:(NSURLSessionDataTask *)dataTask
-    willCacheResponse:(NSCachedURLResponse *)proposedResponse
-    completionHandler:(void (^)(NSCachedURLResponse * _Nullable cachedResponse))completionHandler
-{
-    if([self respondsToSelector:@selector(db_URLSession:dataTask:willCacheResponse:completionHandler:)]) {
-        [self db_URLSession:session dataTask:dataTask willCacheResponse:proposedResponse completionHandler:completionHandler];
-    }
+			 dataTask:(NSURLSessionDataTask *)dataTask
+	willCacheResponse:(NSCachedURLResponse *)proposedResponse
+	completionHandler:(void (^)(NSCachedURLResponse * _Nullable cachedResponse))completionHandler {
+	[[DBNetworkToolkit sharedInstance] saveRequest:dataTask.originalRequest];
+	if ([self respondsToSelector:@selector(db_URLSession:dataTask:willCacheResponse:completionHandler:)]) {
+		[self db_URLSession:session dataTask:dataTask willCacheResponse:proposedResponse completionHandler:completionHandler];
+	} else {
+		completionHandler(proposedResponse); // Ensure the completion handler is called
+	}
 }
 
 - (void)db_URLSession:(NSURLSession *)session
-             dataTask:(NSURLSessionDataTask *)dataTask
+			 dataTask:(NSURLSessionDataTask *)dataTask
    didReceiveResponse:(NSURLResponse *)response
-    completionHandler:(void (^)(NSURLSessionResponseDisposition disposition))completionHandler
-{
-    [[DBNetworkToolkit sharedInstance] saveRequest:dataTask.originalRequest];
-    if([self respondsToSelector:@selector(db_URLSession:dataTask:didReceiveResponse:completionHandler:)]) {
-        [self db_URLSession:session dataTask:dataTask didReceiveResponse:response completionHandler:completionHandler];
-    }
+	completionHandler:(void (^)(NSURLSessionResponseDisposition disposition))completionHandler {
+	[[DBNetworkToolkit sharedInstance] saveRequest:dataTask.originalRequest];
+	if ([self respondsToSelector:@selector(db_URLSession:dataTask:didReceiveResponse:completionHandler:)]) {
+		[self db_URLSession:session dataTask:dataTask didReceiveResponse:response completionHandler:completionHandler];
+	} else {
+		completionHandler(NSURLSessionResponseAllow); // Ensure the completion handler is called
+	}
 }
 
 - (void)db_URLSession:(NSURLSession *)session
-             dataTask:(NSURLSessionDataTask *)dataTask
-       didReceiveData:(NSData *)data
-{
-    [[DBNetworkToolkit sharedInstance] saveRequestOutcome:[DBRequestOutcome outcomeWithResponse:dataTask.response data:data] forRequest:dataTask.originalRequest];
-    if([self respondsToSelector:@selector(db_URLSession:dataTask:didReceiveData:)]) {
-        [self db_URLSession:session dataTask:dataTask didReceiveData:data];
-    }
+			 dataTask:(NSURLSessionDataTask *)dataTask
+	   didReceiveData:(NSData *)data {
+	[[DBNetworkToolkit sharedInstance] saveRequestOutcome:[DBRequestOutcome outcomeWithResponse:dataTask.response data:data] forRequest:dataTask.originalRequest];
+	if ([self respondsToSelector:@selector(db_URLSession:dataTask:didReceiveData:)]) {
+		[self db_URLSession:session dataTask:dataTask didReceiveData:data];
+	}
 }
 
 - (void)db_URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error {
-    if(error != nil) {
-        [[DBNetworkToolkit sharedInstance] saveRequestOutcome:[DBRequestOutcome outcomeWithError:error] forRequest:task.originalRequest];
-    }
+	if (error != nil) {
+		[[DBNetworkToolkit sharedInstance] saveRequestOutcome:[DBRequestOutcome outcomeWithError:error] forRequest:task.originalRequest];
+	}
 
-    if([self respondsToSelector:@selector(db_URLSession:task:didCompleteWithError:)]) {
-        [self db_URLSession:session task:task didCompleteWithError:error];
-    }
+	if ([self respondsToSelector:@selector(db_URLSession:task:didCompleteWithError:)]) {
+		[self db_URLSession:session task:task didCompleteWithError:error];
+	}
 }
 
-- (NSURLSessionDataTask *)db_dataTaskWithRequest:(NSURLRequest *)request completionHandler:(void (^)(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error))completionHandler
-{
-    return [self db_dataTaskWithRequest:request completionHandler:completionHandler];
+- (NSURLSessionDataTask *)db_dataTaskWithRequest:(NSURLRequest *)request completionHandler:(void (^)(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error))completionHandler {
+	return [self db_dataTaskWithRequest:request completionHandler:completionHandler];
 }
+
 @end

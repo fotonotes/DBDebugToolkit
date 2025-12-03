@@ -119,17 +119,34 @@ static const NSInteger DBRequestModelBodyStreamBufferSize = 4096;
 
 #pragma mark - Saving body
 
+- (NSString *)shortenFilenameIfNeeded:(NSString *)filename {
+    const NSUInteger maxLength = 200;
+    
+    if (filename.length <= maxLength) {
+        return filename;
+    }
+    
+    NSString *shortenedFilename = [filename substringToIndex:maxLength];
+    NSString *hash = [NSString stringWithFormat:@"%lu", (unsigned long)[filename hash]];
+    
+    return [NSString stringWithFormat:@"%@_%@", shortenedFilename, hash];
+}
+
 - (NSString *)urlStringByRemovingSchemeFromURL:(NSURL *)url {
     NSRange dividerRange = [url.absoluteString rangeOfString:@"://"];
     return dividerRange.length == 0 ? url.absoluteString : [url.absoluteString substringFromIndex:NSMaxRange(dividerRange)];
 }
 
 - (NSString *)requestBodyFilename {
-    return [NSString stringWithFormat:@"Request/%@_%@", [self urlStringByRemovingSchemeFromURL:self.url], @(self.sendingDate.timeIntervalSince1970)];
+    NSString *filename = [self shortenFilenameIfNeeded:[self urlStringByRemovingSchemeFromURL:self.url]];
+    
+    return [NSString stringWithFormat:@"Request/%@_%@", filename, @(self.sendingDate.timeIntervalSince1970)];
 }
 
 - (NSString *)responseBodyFilename {
-    return [NSString stringWithFormat:@"Response/%@_%@", [self urlStringByRemovingSchemeFromURL:self.url], @(self.receivingDate.timeIntervalSince1970)];
+    NSString *filename = [self shortenFilenameIfNeeded:[self urlStringByRemovingSchemeFromURL:self.url]];
+    
+    return [NSString stringWithFormat:@"Response/%@_%@", filename, @(self.receivingDate.timeIntervalSince1970)];
 }
 
 - (void)saveRequestBody:(NSData *)data {
@@ -152,7 +169,7 @@ static const NSInteger DBRequestModelBodyStreamBufferSize = 4096;
     [self.responseDataHandler readWithCompletion:completion];
 }
 
-#pragma mark - Request properties 
+#pragma mark - Request properties
 
 - (NSInteger)requestBodyLength {
     return self.requestDataHandler.dataLength;

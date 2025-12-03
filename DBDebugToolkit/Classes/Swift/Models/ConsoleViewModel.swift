@@ -2,7 +2,12 @@ final class ConsoleViewModel: NSObject, ObservableObject {
     let consoleOutputCaptor: DBConsoleOutputCaptor
     let deviceInfoProvider: DBDeviceInfoProvider
     @Published var consoleOutput: String
+    @Published var consoleLines: [String] = []
     @Published var isConsoleOutputPause: Bool = false
+
+    private var updateWorkItem: DispatchWorkItem?
+    private let updateDebounceInterval: TimeInterval = 0.1 // 100ms debounce
+    private let maxLines = 2000 // Maximum number of lines to keep
 
     init(
         consoleOutputCaptor: DBConsoleOutputCaptor,
@@ -11,8 +16,17 @@ final class ConsoleViewModel: NSObject, ObservableObject {
         self.consoleOutputCaptor = consoleOutputCaptor
         self.deviceInfoProvider = deviceInfoProvider
         self.consoleOutput = consoleOutputCaptor.consoleOutput
+        self.consoleLines = Self.splitIntoLines(consoleOutputCaptor.consoleOutput, maxLines: maxLines)
         super.init()
         self.consoleOutputCaptor.delegate = self
+    }
+
+    private static func splitIntoLines(_ output: String, maxLines: Int) -> [String] {
+        let lines = output.components(separatedBy: .newlines)
+        if lines.count > maxLines {
+            return Array(lines.suffix(maxLines))
+        }
+        return lines
     }
 
     func pauseConsoleOutput() {
@@ -21,6 +35,7 @@ final class ConsoleViewModel: NSObject, ObservableObject {
 
     func clearConsoleOutput() {
         consoleOutput = ""
+        consoleLines = []
         consoleOutputCaptor.clearConsoleOutput()
     }
 
@@ -48,7 +63,21 @@ extension ConsoleViewModel: DBConsoleOutputCaptorDelegate {
         guard !isConsoleOutputPause else {
             return
         }
-        consoleOutput = consoleOutputCaptor.consoleOutput
+
+        // Cancel previous update if it hasn't executed yet
+        updateWorkItem?.cancel()
+
+        // Create a new work item with debounce
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            self.consoleOutput = consoleOutputCaptor.consoleOutput
+            self.consoleLines = Self.splitIntoLines(consoleOutputCaptor.consoleOutput, maxLines: self.maxLines)
+        }
+
+        updateWorkItem = workItem
+
+        // Execute the update after debounce interval
+        DispatchQueue.main.asyncAfter(deadline: .now() + updateDebounceInterval, execute: workItem)
     }
 
     func consoleOutputCaptor(_ consoleOutputCaptor: DBConsoleOutputCaptor!, didSetEnabled enabled: Bool) {

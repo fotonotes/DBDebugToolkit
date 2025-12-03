@@ -1,13 +1,50 @@
 import SwiftUI
+import UIKit
+
+// SwiftUI wrapper for the UIKit-based DBConsoleViewController
+struct ConsoleViewControllerWrapper: UIViewControllerRepresentable {
+    let consoleOutputCaptor: DBConsoleOutputCaptor
+    let deviceInfoProvider: DBDeviceInfoProvider
+
+    func makeUIViewController(context: Context) -> DBConsoleViewController {
+        return DBConsoleViewController(
+            consoleOutputCaptor: consoleOutputCaptor,
+            deviceInfoProvider: deviceInfoProvider
+        )
+    }
+
+    func updateUIViewController(_ uiViewController: DBConsoleViewController, context: Context) {
+        // No updates needed
+    }
+}
+
+// MARK: - Legacy SwiftUI Console View (kept for reference, not used)
 
 struct ConsoleView: View {
     @ObservedObject var viewModel: ConsoleViewModel
 
     var body: some View {
-        ScrollView {
-            Text(viewModel.consoleOutput)
-                .font(.footnote)
-                .padding()
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    if viewModel.consoleLines.isEmpty {
+                        Text("No console output yet")
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundColor(.gray)
+                            .padding()
+                    } else {
+                        ForEach(Array(viewModel.consoleLines.enumerated()), id: \.offset) { index, line in
+                            Text(line)
+                                .font(.system(size: 11, design: .monospaced))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 1)
+                                .textSelection(.enabled)
+                                .id(index)
+                        }
+                    }
+                }
+            }
         }
         .navigationBarTitle("Console")
         .navigationBarItems(trailing: navigationBarItems())

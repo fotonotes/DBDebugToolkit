@@ -27,7 +27,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/sysctl.h>
+#if __has_include(<DBDebugToolkit/DBDebugToolkit-Swift.h>)
 #import <DBDebugToolkit/DBDebugToolkit-Swift.h>
+#else
+#import <DBDebugToolkit-Swift.h>
+#endif
 
 typedef void (*sighandler_t)(int);
 
