@@ -39,6 +39,7 @@ final class ConsoleViewModel: NSObject, ObservableObject {
         consoleOutputCaptor.clearConsoleOutput()
     }
 
+    @MainActor
     func shareConsoleOutput() {
         let content = """
         Device model: \(deviceInfoProvider.deviceModel() ?? "unknown"))
