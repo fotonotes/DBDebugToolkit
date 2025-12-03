@@ -13,7 +13,7 @@ public struct MenuList: View {
                 NavigationLink("User Interface", destination: UserInterfaceView(userInterfaceToolkit: viewModel.userInterfaceToolkit))
                 NavigationLink("Network", destination: NetworkList(viewModel: .init( networkToolkit: viewModel.networkToolkit)))
                 NavigationLink("Resources", destination: ResourcesList(viewModel: .init(coreDataToolkit: viewModel.coreDataToolkit)))
-                NavigationLink("Console", destination: ConsoleView(viewModel: .init(consoleOutputCaptor: viewModel.consoleOutputCaptor, deviceInfoProvider: viewModel.deviceInfoProvider)))
+                NavigationLink("Console", destination: ConsoleViewControllerWrapper(consoleOutputCaptor: viewModel.consoleOutputCaptor, deviceInfoProvider: viewModel.deviceInfoProvider))
                 NavigationLink("Location", destination: LocationView(locationToolkit: viewModel.locationToolkit))
                 NavigationLink("Crash reports", destination: CrashReportsView(crashReportsToolkit: viewModel.crashReportsToolkit))
                 NavigationLink("Custom variables", destination: CustomVariablesView(customVariables: viewModel.customVariables))
