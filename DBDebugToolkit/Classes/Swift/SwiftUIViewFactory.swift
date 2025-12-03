@@ -3,6 +3,7 @@ import UIKit
 
 @objc
 public class SwiftUIViewFactory: NSObject {
+    @MainActor
     @objc
     public static func makeMenuListView(
         performanceToolkit: DBPerformanceToolkit,
